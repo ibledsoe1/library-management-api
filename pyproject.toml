@@ -1,7 +1,9 @@
 [project]
 name = "library-management-api"
 version = "0.1.0"
-description = "Add your description here"
+description = "An API for managing a library. This includes it's members and books."
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "fastapi[standard]>=0.116.0",
+]
