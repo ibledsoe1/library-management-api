@@ -17,7 +17,7 @@ class BookBase(BaseModel):
         description="Title of the book.",
         examples=["The Fellowship Of The Ring"],
     )
-    AUTHOR: str = Field(
+    author: str = Field(
         min_length=1,
         max_length=120,
         description="Author of the book.",
@@ -35,7 +35,7 @@ class BookBase(BaseModel):
     )
     member_id: int = Field(
         description="Membership ID of member who has this book.",
-        examples=[101]
+        examples=[101],
     )
 
 

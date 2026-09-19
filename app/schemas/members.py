@@ -23,14 +23,14 @@ class MemberBase(BaseModel):
     )
     membership_id: str = Field(
         description="Unique membership ID of the library member.",
-        examples="101",
+        examples=["101"],
     )
     phone: str = Field(
         min_length=10,
         max_length=10,
         description="Phone number of the library member "
         "(must be 10 digits w/o formatting like dashes and parentheses).",
-        examples="1234567890",
+        examples=["1234567890"],
     )
 
 

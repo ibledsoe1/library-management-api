@@ -9,7 +9,7 @@ members: list[MemberResponse] = [
         name="Izzy Bledsoe",
         email="ibledsoe1@collin.edu",
         membership_id="101",
-        phone="111-222-3333",
+        phone="1112223333",
     )
 ]
 
