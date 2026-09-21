@@ -99,11 +99,11 @@ def replace_book(
     data: BookUpdate,
 ) -> BookResponse:
     """Replace editable fields of an existing book."""
-    
+
     # Check for books related member and isbn uniqueness
     book = find_book(book_id)
     find_member(data.member_id)
-    check_unique_isbn(data.isbn, exclude_book_id=book_id)
+    check_unique_isbn(data.isbn, book_id)
 
     updated_book = BookResponse(
         id=book_id,

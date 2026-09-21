@@ -33,8 +33,6 @@ app = FastAPI(
     openapi_tags=tags_metadata,
 )
 
-# Add every Project route defined in app/routers/projects.py to the application.
-# Keeping resource routes in a router prevents main.py from becoming crowded.
 app.include_router(members_router)
 app.include_router(books_router)
 

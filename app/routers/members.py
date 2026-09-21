@@ -64,10 +64,9 @@ def get_member(member_id: int) -> MemberResponse:
     response_model=MemberResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a member",
-    description="Create a member from a validated name and description.",
+    description="Create a member from a validated JSON request body.",
     responses={
-        409: {"description": "Email already in use"},
-        409: {"description": "Membership ID already in use"},
+        409: {"description": "Email or membership ID already in use."},
     }
 )
 def create_member(data: MemberCreate) -> MemberResponse:
@@ -92,8 +91,7 @@ def create_member(data: MemberCreate) -> MemberResponse:
     description="Replace all editable fields of an existing member.",
     responses={
         404: {"description": "Member not found"},
-        409: {"description": "Email already in use"},
-        409: {"description": "Membership ID already in use"},
+        409: {"description": "Email or membership ID already in use."},
     },
 )
 def replace_member(
@@ -101,11 +99,11 @@ def replace_member(
     data: MemberUpdate,
 ) -> MemberResponse:
     """Replace editable fields of an existing member."""
-    
+
     # Check for email and membership_id uniqueness
     member = find_member(member_id)
-    check_unique_email(data.email)
-    check_unique_membership_id(data.membership_id)
+    check_unique_email(data.email, member_id)
+    check_unique_membership_id(data.membership_id, member_id)
     updated_member = MemberResponse(
         id=member_id,
         **data.model_dump(),
