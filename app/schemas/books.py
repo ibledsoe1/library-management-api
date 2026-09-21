@@ -1,5 +1,6 @@
 """Request and response schemas for the Book resource."""
 
+from datetime import date 
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -27,9 +28,10 @@ class BookBase(BaseModel):
         description="Unique ISBN of the book.",
         examples=["978-0547928210"],
     )
+    # published_year must be from 1450 to the current year
     published_year: int = Field(
         ge=1450,
-        le=2026, # Hardcoded for now, TODO: change to var later
+        le=date.today().year,
         description="Year the book was published.",
         examples=[2012],
     )
