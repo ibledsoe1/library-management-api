@@ -1,6 +1,7 @@
 """HTTP endpoints for the Member resource."""
 
 from fastapi import APIRouter, HTTPException, Response, status
+from pydantic import EmailStr
 
 from app.schemas.members import MemberCreate, MemberResponse, MemberUpdate
 from app.schemas.books import BookResponse
@@ -9,6 +10,7 @@ from app.storage import members, books
 router = APIRouter(prefix="/members", tags=["Members"])
 
 
+# Uses the server generated int ID, not the membership_id string
 def find_member(member_id: int) -> MemberResponse:
     """Find one member or return an HTTP 404 error to the client."""
     for member in members:
@@ -20,6 +22,15 @@ def find_member(member_id: int) -> MemberResponse:
         detail="Member not found",
     )
 
+def check_unique_email(email: EmailStr, exclude_member_id: int | None = None) -> None:
+    for member in members:
+        if member.id != exclude_member_id and member.email == email:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already in use")
+
+def check_unique_membership_id(membership_id: str, exclude_member_id: int | None = None) -> None:
+    for member in members:
+        if member.id != exclude_member_id and member.membership_id == membership_id:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Membership ID already in use")
 
 # Return all library members
 @router.get(
@@ -47,15 +58,22 @@ def get_member(member_id: int) -> MemberResponse:
 
 
 # Create a new member
+# A new member can't share same email or membership_id as an existing member
 @router.post(
     "",
     response_model=MemberResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a member",
     description="Create a member from a validated name and description.",
+    responses={
+        409: {"description": "Email already in use"},
+        409: {"description": "Membership ID already in use"},
+    }
 )
 def create_member(data: MemberCreate) -> MemberResponse:
     """Create a member from a validated JSON request body."""
+    check_unique_email(data.email)
+    check_unique_membership_id(data.membership_id)
 
     next_member_id = max((member.id for member in members), default=0) + 1
     member = MemberResponse(
@@ -72,14 +90,22 @@ def create_member(data: MemberCreate) -> MemberResponse:
     response_model=MemberResponse,
     summary="Replace a member",
     description="Replace all editable fields of an existing member.",
-    responses={404: {"description": "Member not found"}},
+    responses={
+        404: {"description": "Member not found"},
+        409: {"description": "Email already in use"},
+        409: {"description": "Membership ID already in use"},
+    },
 )
 def replace_member(
     member_id: int,
     data: MemberUpdate,
 ) -> MemberResponse:
-    """Replace the name and description of an existing member."""
+    """Replace editable fields of an existing member."""
+    
+    # Check for email and membership_id uniqueness
     member = find_member(member_id)
+    check_unique_email(data.email)
+    check_unique_membership_id(data.membership_id)
     updated_member = MemberResponse(
         id=member_id,
         **data.model_dump(),

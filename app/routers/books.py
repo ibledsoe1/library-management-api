@@ -20,6 +20,14 @@ def find_book(book_id: int) -> BookResponse:
         detail="Book not found",
     )
 
+def check_unique_isbn(isbn: str, exclude_book_id: int | None = None) -> None:
+    """Return HTTP 409 error to client if an existing book has this ISBN."""
+    for book in books:
+        if book.isbn == isbn and book.id != exclude_book_id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="ISBN already in use"
+            )
 
 # Return all books
 @router.get(
@@ -47,17 +55,22 @@ def get_book(book_id: int) -> BookResponse:
 
 
 # Create a new book
-# To be created it needs to be associated with one existing member
+# To be created it needs to be associated with one existing member, 
+# and it can't match an existing book's ISBN
 @router.post(
     "",
     response_model=BookResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a book",
     description="Create a book and associate it with an existing member.",
-    responses={404: {"description": "Related member not found"}},
+    responses={
+        404: {"description": "Related member not found"},
+        409: {"description": "ISBN already in use"}
+    },
 )
 def create_book(data: BookCreate) -> BookResponse:
     """Create a book associated with an existing member."""
+    check_unique_isbn(data.isbn)
 
     find_member(data.member_id)
     next_book_id = max((book.id for book in books), default=0) + 1
@@ -78,15 +91,20 @@ def create_book(data: BookCreate) -> BookResponse:
     description="Replace all editable fields and verify the related member.",
     responses={
         404: {"description": "Book or related member not found"},
+        409: {"description": "ISBN already in use"}
     },
 )
 def replace_book(
     book_id: int,
     data: BookUpdate,
 ) -> BookResponse:
-    """Replace an existing book after checking its related member."""
+    """Replace editable fields of an existing book."""
+    
+    # Check for books related member and isbn uniqueness
     book = find_book(book_id)
     find_member(data.member_id)
+    check_unique_isbn(data.isbn, exclude_book_id=book_id)
+
     updated_book = BookResponse(
         id=book_id,
         **data.model_dump(),
