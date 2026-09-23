@@ -1,2 +1,2 @@
 # library-management-api
-library management API for assignments
+Library management API for SDEV 3310 assignment 1
