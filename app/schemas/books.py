@@ -25,6 +25,7 @@ class BookBase(BaseModel):
         examples=["J.R.R. Tolkien"],
     )
     isbn: str = Field(
+        min_length=10,
         description="Unique ISBN of the book.",
         examples=["978-0547928210"],
     )
@@ -36,8 +37,8 @@ class BookBase(BaseModel):
         examples=[2012],
     )
     member_id: int = Field(
-        description="Membership ID of member who has this book.",
-        examples=[101],
+        description="Server generated ID of member who has this book.",
+        examples=[1],
     )
 
 

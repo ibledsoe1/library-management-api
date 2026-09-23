@@ -26,10 +26,9 @@ class MemberBase(BaseModel):
         examples=["101"],
     )
     phone: str = Field(
-        min_length=10,
-        max_length=10,
+        pattern=r"^\d{10}$",
         description="Phone number of the library member "
-        "(must be 10 digits w/o formatting like dashes and parentheses).",
+        "(must be 10 number digits w/o formatting like dashes and parentheses).",
         examples=["1234567890"],
     )
 
