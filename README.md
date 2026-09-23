@@ -30,7 +30,7 @@ Restart your terminal, then verify the installation:
 uv --version
 ```
 
-### Set up the member
+### Set up the project
 
 From the repository root, run:
 
