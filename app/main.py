@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 
 from app import models # This is here to register ORM models before create_all() runs I think
-
+from app.config import Settings, StorageBackend
 from app.models.base import Base
 
 from app.routers.members import router as members_router
