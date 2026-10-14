@@ -6,7 +6,6 @@ from app import models # This is here to register ORM models before create_all()
 from app.config import Settings, StorageBackend
 from app.models.base import Base
 from app.database.session import create_database
-
 from app.routers.members import router as members_router
 from app.routers.books import router as books_router
 
