@@ -7,7 +7,7 @@ from app.exceptions import MemberNotFoundError, BookNotFoundError
 from app.models.book import Book
 from app.routers.http_errors import member_not_found, book_not_found
 from app.schemas.books import BookResponse, BookInput
-from app.service.books import BookService
+from app.services.books import BookService
 
 router = APIRouter(prefix="/books", tags=["Books"])
 
