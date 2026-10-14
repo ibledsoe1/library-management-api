@@ -42,12 +42,8 @@ class BookBase(BaseModel):
     )
 
 
-class BookCreate(BookBase):
-    """Validate the body used to create a Book."""
-
-
-class BookUpdate(BookBase):
-    """Validate the replacement body used to update a Book."""
+class BookInput(BookBase):
+    """Validate client-controlled fields for a Book create or replacement"""
 
 
 class BookResponse(BookBase):
