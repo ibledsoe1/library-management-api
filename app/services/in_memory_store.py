@@ -7,7 +7,7 @@ from app.models.member import Member
 from app.models.book import Book
 
 @dataclass
-class inMemoryStore:
+class InMemoryStore:
     """Hold Members and Books for one application-scoped in-memory service pair."""
 
     members: list[Member] = field(default_factory=list)
