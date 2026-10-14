@@ -33,12 +33,8 @@ class MemberBase(BaseModel):
     )
 
 
-class MemberCreate(MemberBase):
-    """Validate the body used to create a Member."""
-
-
-class MemberUpdate(MemberBase):
-    """Validate the replacement body used to update a Member."""
+class MemberInput(MemberBase):
+    """Validate client-controlled fields for a Member create or replacement"""
 
 
 class MemberResponse(MemberBase):
