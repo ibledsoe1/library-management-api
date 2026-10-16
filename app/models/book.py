@@ -27,4 +27,4 @@ class Book(Base):
         index=True,
     )
 
-    project: Mapped[Member] = relationship(back)
+    project: Mapped[Member] = relationship(back_populates="books")
