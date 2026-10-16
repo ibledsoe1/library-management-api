@@ -31,3 +31,12 @@ class BookRepository:
     def exists_for_member(self, member_id: int) -> bool:
         statement = select(exists().where(Book.member_id == member_id))
         return bool(self.session.scalar(statement))
+
+    def create(self, data: BookInput) -> Book:
+        book = Book(**data.model_dump())
+        self.session.add(book)
+        self.session.flush()
+        return book
+
+    def delete(self, book: Book) -> None:
+        self.session.delete(book)
