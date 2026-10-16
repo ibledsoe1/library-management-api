@@ -3,9 +3,9 @@
 from fastapi import APIRouter, HTTPException, Response, status, Depends
 
 from app.depencencies import get_book_service
-from app.exceptions import MemberNotFoundError, BookNotFoundError
+from app.exceptions import MemberNotFoundError, BookNotFoundError, ISBNAlreadyExistsError
 from app.models.book import Book
-from app.routers.http_errors import member_not_found, book_not_found
+from app.routers.http_errors import member_not_found, book_not_found, isbn_already_exists
 from app.schemas.books import BookResponse, BookInput
 from app.services.books import BookService
 
@@ -86,6 +86,8 @@ def create_book(
         return service.create_book(data)
     except MemberNotFoundError:
         raise member_not_found() from None
+    except ISBNAlreadyExistsError:
+        raise isbn_already_exists() from None
 
 
 # Replace/edit data for a specific book, including its member relationship
@@ -111,6 +113,8 @@ def replace_book(
         raise book_not_found() from None
     except MemberNotFoundError:
         raise member_not_found() from None
+    except ISBNAlreadyExistsError:
+        raise isbn_already_exists() from None
 
 
 # Delete a specific book based on its book_id
