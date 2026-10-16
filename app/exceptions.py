@@ -14,3 +14,6 @@ class BookNotFoundError(Exception):
 
 class MemberHasBooksError(Exception):
     """Signal that a Member cannot be deleted while Books reference it."""
+
+class ISBNAlreadyExistsError(Exception):
+    """Signal that an existing Book already has the entered ISBN."""

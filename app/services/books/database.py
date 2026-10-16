@@ -1,8 +1,9 @@
 """Relational-database Book service implementation."""
 
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.exc import IntegrityError
 
-from app.exceptions import MemberNotFoundError, BookNotFoundError
+from app.exceptions import MemberNotFoundError, BookNotFoundError, ISBNAlreadyExistsError
 from app.models.book import Book
 from app.repositories.members import MemberRepository
 from app.repositories.books import BookRepository
@@ -35,9 +36,15 @@ class DatabaseBookService(BookService):
         with self._session_factory.begin() as session:
             if MemberRepository(session).get_by_id(data.member_id) is None:
                 raise MemberNotFoundError
-            book = BookRepository(session).create(data)
+            try: 
+                book = BookRepository(session).create(data)
+            except IntegrityError as error:
+                if error.orig.sqlstate == '23505' and error.orig.diag.constraint_name == 'uq_books_isbn':
+                    raise ISBNAlreadyExistsError
+                raise # raises regular integrity error if if check fails
             session.refresh(book)
             return book
+
 
     def replace_book(self, book_id: int, data: BookInput) -> Book:
         # Lookup, validation, update, and commit are one atomic use case.

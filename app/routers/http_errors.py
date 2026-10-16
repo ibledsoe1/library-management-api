@@ -26,3 +26,10 @@ def member_has_books() -> HTTPException:
         status_code=status.HTTP_409_CONFLICT,
         detail="Delete the member's books before deleting the member"
     )
+
+def isbn_already_exists() -> HTTPException:
+    """Return the HTTP 409 response for a Book that already has the entered ISBN."""
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail="An existing Book already uses that ISBN."
+    )
