@@ -66,6 +66,7 @@ app = FastAPI(
     ),
     version="0.2.0",
     openapi_tags=tags_metadata,
+    lifespan=lifespan,
 )
 
 app.include_router(members_router)
