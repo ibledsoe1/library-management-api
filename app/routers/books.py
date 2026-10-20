@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, HTTPException, Response, status, Depends
 
-from app.depencencies import get_book_service
+from app.dependencies import get_book_service
 from app.exceptions import MemberNotFoundError, BookNotFoundError, ISBNAlreadyExistsError
 from app.models.book import Book
 from app.routers.http_errors import member_not_found, book_not_found, isbn_already_exists

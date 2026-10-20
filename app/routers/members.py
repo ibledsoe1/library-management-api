@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, HTTPException, Response, status, Depends
 
-from app.depencencies import get_member_service
+from app.dependencies import get_member_service
 from app.exceptions import MemberHasBooksError, MemberNotFoundError
 from app.models.member import Member
 from app.models.book import Book
