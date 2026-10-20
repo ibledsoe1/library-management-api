@@ -41,7 +41,7 @@ class DatabaseMemberService(MemberService):
     def replace_member(self, member_id: int, data: MemberInput) -> Member:
         with self._session_factory.begin() as session:
             repository = MemberRepository(session)
-            member = member.get_by_id(member_id)
+            member = repository.get_by_id(member_id)
             if member is None:
                 raise MemberNotFoundError
             updated_member = repository.replace(member, data)
@@ -51,7 +51,7 @@ class DatabaseMemberService(MemberService):
     def delete_member(self, member_id: int) -> None:
         with self._session_factory.begin() as session:
             repository = MemberRepository(session)
-            member = member.get_by_id(member_id)
+            member = repository.get_by_id(member_id)
             if member is None:
                 raise MemberNotFoundError
             if BookRepository(session).exists_for_member(member_id):
