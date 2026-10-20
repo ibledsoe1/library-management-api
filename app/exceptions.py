@@ -17,3 +17,9 @@ class MemberHasBooksError(Exception):
 
 class ISBNAlreadyExistsError(Exception):
     """Signal that an existing Book already has the entered ISBN."""
+
+class EmailAlreadyExistsError(Exception):
+    """Signal that an existing Member already has the entered email."""
+
+class MembershipIdAlreadyExistsError(Exception):
+    """Signal that an existing Member already has the entered membership id."""

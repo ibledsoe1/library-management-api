@@ -1,6 +1,6 @@
 """HTTP endpoints for the Book resource."""
 
-from fastapi import APIRouter, HTTPException, Response, status, Depends
+from fastapi import APIRouter, Response, status, Depends
 
 from app.dependencies import get_book_service
 from app.exceptions import MemberNotFoundError, BookNotFoundError, ISBNAlreadyExistsError

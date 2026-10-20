@@ -1,8 +1,14 @@
 """Relational-database Member service implementation."""
 
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.exc import IntegrityError
 
-from app.exceptions import MemberHasBooksError, MemberNotFoundError
+from app.exceptions import (
+    MemberHasBooksError, 
+    MemberNotFoundError,
+    EmailAlreadyExistsError,
+    MembershipIdAlreadyExistsError
+)
 from app.models.member import Member
 from app.models.book import Book
 from app.repositories.members import MemberRepository
@@ -34,7 +40,14 @@ class DatabaseMemberService(MemberService):
     def create_member(self, data: MemberInput) -> Member:
         # begin() commits on success and rolls back if an exception escapes.
         with self._session_factory.begin() as session:
-            member = MemberRepository(session).create(data)
+            try:
+                member = MemberRepository(session).create(data)
+            except IntegrityError as error:
+                if error.orig.sqlstate == '23505' and error.orig.diag.constraint_name == 'uq_members_email':
+                    raise EmailAlreadyExistsError
+                elif error.orig.sqlstate == '23505' and error.orig.diag.constraint_name == 'uq_membership_id':
+                    raise MembershipIdAlreadyExistsError
+                raise
             session.refresh(member)
             return member
 
@@ -44,7 +57,14 @@ class DatabaseMemberService(MemberService):
             member = repository.get_by_id(member_id)
             if member is None:
                 raise MemberNotFoundError
-            updated_member = repository.replace(member, data)
+            try:
+                updated_member = repository.replace(member, data)
+            except IntegrityError as error:
+                if error.orig.sqlstate == '23505' and error.orig.diag.constraint_name == 'uq_members_email':
+                    raise EmailAlreadyExistsError
+                elif error.orig.sqlstate == '23505' and error.orig.diag.constraint_name == 'uq_membership_id':
+                    raise MembershipIdAlreadyExistsError
+                raise
             session.refresh(updated_member)
             return updated_member
 

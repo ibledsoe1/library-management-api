@@ -1,12 +1,22 @@
 """HTTP endpoints for the Member resource."""
 
-from fastapi import APIRouter, HTTPException, Response, status, Depends
+from fastapi import APIRouter, Response, status, Depends
 
 from app.dependencies import get_member_service
-from app.exceptions import MemberHasBooksError, MemberNotFoundError
+from app.exceptions import (
+    MemberHasBooksError,
+    MemberNotFoundError, 
+    EmailAlreadyExistsError, 
+    MembershipIdAlreadyExistsError
+)
 from app.models.member import Member
 from app.models.book import Book
-from app.routers.http_errors import member_has_books, member_not_found
+from app.routers.http_errors import (
+    member_has_books, 
+    member_not_found, 
+    email_already_exists, 
+    membership_id_already_exists
+)
 from app.schemas.members import MemberInput, MemberResponse
 from app.schemas.books import BookResponse
 from app.services.members import MemberService
@@ -64,7 +74,12 @@ def create_member(
     service: MemberService = Depends(get_member_service),
 ) -> Member:
     """Pass validated input to the business and persistence layers."""
-    return service.create_member(data)
+    try:
+        return service.create_member(data)
+    except EmailAlreadyExistsError:
+        raise email_already_exists() from None
+    except MembershipIdAlreadyExistsError:
+        raise membership_id_already_exists() from None
 
 
 # Replace/edit data for a specific member
@@ -88,6 +103,10 @@ def replace_member(
         return service.replace_member(member_id, data)
     except MemberNotFoundError:
         raise member_not_found() from None
+    except EmailAlreadyExistsError:
+        raise email_already_exists() from None
+    except MembershipIdAlreadyExistsError:
+        raise membership_id_already_exists() from None
     
 
 # Delete a specific library member based on their member_id (if they have no checked out books)

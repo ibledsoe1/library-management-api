@@ -33,3 +33,17 @@ def isbn_already_exists() -> HTTPException:
         status_code=status.HTTP_409_CONFLICT,
         detail="An existing Book already uses that ISBN."
     )
+
+def email_already_exists() -> HTTPException:
+    """Return the HTTP 409 response for a Member that already has the entered email."""
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail="An existing Member already uses that email."
+    )
+
+def membership_id_already_exists() -> HTTPException:
+    """Return the HTTP 409 response for a Member that already has the entered membership id."""
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail="An existing Member already uses that membership id."
+    )
