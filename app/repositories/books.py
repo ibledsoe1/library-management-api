@@ -38,5 +38,14 @@ class BookRepository:
         self.session.flush()
         return book
 
+    def replace(self, book: Book, data: BookInput) -> Book:
+        book.title = data.title
+        book.author = data.author
+        book.isbn = data.isbn
+        book.published_year = data.published_year
+        book.member_id = data.member_id
+        self.session.flush()
+        return book
+
     def delete(self, book: Book) -> None:
         self.session.delete(book)

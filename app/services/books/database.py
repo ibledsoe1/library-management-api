@@ -55,7 +55,12 @@ class DatabaseBookService(BookService):
                 raise BookNotFoundError
             if MemberRepository(session).get_by_id(data.member_id) is None:
                 raise MemberNotFoundError
-            updated_book = book_repository.replace(book, data)
+            try:
+                updated_book = book_repository.replace(book, data)
+            except IntegrityError as error:
+                if error.orig.sqlstate == '23505' and error.orig.diag.constraint_name == 'uq_books_isbn':
+                    raise ISBNAlreadyExistsError
+                raise
             session.refresh(updated_book)
             return updated_book
 

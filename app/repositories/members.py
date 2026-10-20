@@ -27,7 +27,6 @@ class MemberRepository:
         return member
 
     def replace(self, member: Member, data: MemberInput) -> Member:
-        # NOTE: Find out if there's a way I can make replacing the fields more simple
         member.name = data.name
         member.email = data.email
         member.membership_id = data.membership_id
