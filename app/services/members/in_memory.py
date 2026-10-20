@@ -42,7 +42,9 @@ class InMemoryMemberService(MemberService):
         with self._store.lock:
             member = self.get_member(member_id)
             member.name = data.name
-            member.description = data.description
+            member.email = data.email
+            member.membership_id = data.membership_id
+            member.phone = data.phone
             return member
 
     def delete_member(self, member_id: int) -> None:

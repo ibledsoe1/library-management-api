@@ -30,7 +30,8 @@ class BookBase(BaseModel):
         examples=["978-0547928210"],
     )
     # published_year must be from 1450 to the current year
-    published_year: int = Field(
+    published_year: None | int = Field(
+        default=None,
         ge=1450,
         le=date.today().year,
         description="Year the book was published.",

@@ -49,8 +49,9 @@ class InMemoryBookService(BookService):
             ):
                 raise MemberNotFoundError
             book.title = data.title
-            book.description = data.description
-            book.completed = data.completed
+            book.author = data.author
+            book.isbn = data.isbn
+            book.year = data.year
             book.member_id = data.member_id
             return book
 
