@@ -10,27 +10,6 @@ from app.schemas.books import BookResponse, BookInput
 from app.services.books import BookService
 
 router = APIRouter(prefix="/books", tags=["Books"])
-
-# NOTE: Old code, might need for service layer?
-"""
-def find_book(book_id: int) -> BookResponse:
-    for book in books:
-        if book.id == book_id:
-            return book
-
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="Book not found",
-    )
-
-def check_unique_isbn(isbn: str, exclude_book_id: int | None = None) -> None:
-    for book in books:
-        if book.isbn == isbn and book.id != exclude_book_id:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="ISBN already in use"
-            )
-"""
             
 # Return all books
 @router.get(

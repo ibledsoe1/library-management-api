@@ -13,30 +13,6 @@ from app.services.members import MemberService
 
 router = APIRouter(prefix="/members", tags=["Members"])
 
-
-# NOTE: Old code, might need for service layer?
-# Uses the server generated int ID, not the membership_id string
-"""
-def find_member(member_id: int) -> MemberResponse:
-    for member in members:
-        if member.id == member_id:
-            return member
-
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="Member not found",
-    )
-
-def check_unique_email(email: EmailStr, exclude_member_id: int | None = None) -> None:
-    for member in members:
-        if member.id != exclude_member_id and member.email == email:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already in use")
-
-def check_unique_membership_id(membership_id: str, exclude_member_id: int | None = None) -> None:
-    for member in members:
-        if member.id != exclude_member_id and member.membership_id == membership_id:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Membership ID already in use")
-"""
             
 # Return all library members
 @router.get(
