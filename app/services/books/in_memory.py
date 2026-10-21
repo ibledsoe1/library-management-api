@@ -1,6 +1,6 @@
 """In-memory Book service implementation."""
 
-from app.exceptions import MemberNotFoundError, BookNotFoundError
+from app.exceptions import MemberNotFoundError, BookNotFoundError, ISBNAlreadyExistsError
 from app.models.book import Book
 from app.schemas.books import BookInput
 from app.services.in_memory_store import InMemoryStore
@@ -34,6 +34,10 @@ class InMemoryBookService(BookService):
                 member.id == data.member_id for member in self._store.members
             ):
                 raise MemberNotFoundError
+            if any(
+                book.isbn == data.isbn for book in self._store.books
+            ):
+                raise ISBNAlreadyExistsError
             book = Book(
                 id=max((item.id for item in self._store.books), default=0) + 1,
                 **data.model_dump(),
@@ -48,10 +52,14 @@ class InMemoryBookService(BookService):
                 member.id == data.member_id for member in self._store.members
             ):
                 raise MemberNotFoundError
+            if any(
+                book.isbn == data.isbn and book.id != book_id for book in self._store.books
+            ):
+                raise ISBNAlreadyExistsError
             book.title = data.title
             book.author = data.author
             book.isbn = data.isbn
-            book.year = data.year
+            book.published_year = data.published_year
             book.member_id = data.member_id
             return book
 

@@ -1,6 +1,11 @@
 """In-memory Member service implementation."""
 
-from app.exceptions import MemberHasBooksError, MemberNotFoundError
+from app.exceptions import (
+    MemberHasBooksError,
+    MemberNotFoundError,
+    EmailAlreadyExistsError,
+    MembershipIdAlreadyExistsError
+)
 from app.models.member import Member
 from app.models.book import Book
 from app.schemas.members import MemberInput
@@ -31,6 +36,14 @@ class InMemoryMemberService(MemberService):
     def create_member(self, data: MemberInput) -> Member:
         # Lock ID generation and append as one operation.
         with self._store.lock:
+            if any(
+                member.email == data.email for member in self._store.members
+            ):
+                raise EmailAlreadyExistsError
+            if any(
+                member.membership_id == data.membership_id for member in self._store.members
+            ):
+                raise MembershipIdAlreadyExistsError
             member = Member(
                 id=max((item.id for item in self._store.members), default=0) + 1,
                 **data.model_dump(),
@@ -41,6 +54,14 @@ class InMemoryMemberService(MemberService):
     def replace_member(self, member_id: int, data: MemberInput) -> Member:
         with self._store.lock:
             member = self.get_member(member_id)
+            if any(
+                member.email == data.email and member.id != member_id for member in self._store.members
+            ):
+                raise EmailAlreadyExistsError
+            if any(
+                member.membership_id == data.membership_id and member.id != member_id for member in self._store.members
+            ):
+                raise MembershipIdAlreadyExistsError
             member.name = data.name
             member.email = data.email
             member.membership_id = data.membership_id
