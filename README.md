@@ -2,13 +2,15 @@
 
 This is a simple library management API, which lets users manage library related data such as Members and Books. Users can create, view, update, and delete Members or Books, and each Book belongs to a Member. 
 
-This is for SDEV 3310 Assignment 1.
+This API uses layered architecture, and the storage type can be switched between in-memory and database. The default storage type is PostgreSQL database. To switch storage type to memory, set STORAGE_BACKEND=memory in .env to run the application with process-local lists. Changing it to STORAGE_BACKEND=database switches it back to the PostgreSQL database.
+
+This is for SDEV 3310 Assignment 2.
 
 ## Requirements
 
 - [uv](https://docs.astral.sh/uv/)
 
-`uv` manages the Python version, virtual environment, and member dependencies.
+`uv` manages the Python version, virtual environment, and dependencies.
 
 ### Install uv
 
@@ -30,7 +32,16 @@ Restart your terminal, then verify the installation:
 uv --version
 ```
 
-### Set up the member
+### Set up PostgreSQL
+
+Download the PostgreSQL installer (https://www.postgresql.org/download/) for your system and follow the installation instructions.
+
+From the library-management-api folder, run the database setup script and enter the password.
+```bash
+psql -U postgres -d postgres -f scripts/setup_database.sql
+```
+
+### Install dependencies
 
 From the repository root, run:
 
@@ -41,6 +52,20 @@ uv sync
 If the required Python version is unavailable, `uv sync` downloads it. It also creates the virtual environment and installs the dependencies recorded in `uv.lock`.
 
 ## Run the API
+
+Before starting the API, copy the sample environment file:
+
+```bash
+cp .env.example .env
+```
+
+The local connection uses the database user account and password created by the database setup script:
+
+```text
+DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/library
+```
+
+The URL identifies the database dialect and driver, username, password, host, port, and database name. The `postgres:postgres` username and password are intentionally simple for the demo.
 
 ```bash
 uv run uvicorn app.main:app --reload
@@ -84,8 +109,7 @@ Here's some example data you can use for Member `POST` and `PUT` requests:
     "name":"John Doe",
     "email":"jdoe1@gmail.com",
     "membership_id":"102",
-    "phone":"1231231234",
-    "id":2
+    "phone":"1231231234"
 }
 ```
 
@@ -124,20 +148,38 @@ Book validation rules include:
 ```text
 library-management-api/
 ├── app/
+│   ├── database/
+│   │   └── session.py
+│   ├── config.py
+│   ├── dependencies.py
+│   ├── models/
+│   │   ├── base.py
+│   │   ├── member.py
+│   │   └── book.py
+│   ├── repositories/
+│   │   ├── members.py
+│   │   └── books.py
 │   ├── routers/
-│   │   ├── __init__.py
-│   │   ├── books.py
-│   │   └── members.py
+│   │   ├── members.py
+│   │   └── books.py
 │   ├── schemas/
-│   │   ├── __init__.py
-│   │   ├── books.py
-│   │   └── members.py
-│   ├── __init__.py
-│   ├── main.py
-│   └── storage.py
-├── .gitignore
-├── .python-version
-├── README.md
+│   │   ├── members.py
+│   │   └── books.py
+│   ├── services/
+│   │   ├── in_memory_store.py
+│   │   ├── members/
+│   │   │   ├── __init__.py
+│   │   │   ├── base.py
+│   │   │   ├── database.py
+│   │   │   └── in_memory.py
+│   │   └── books/
+│   │       ├── __init__.py
+│   │       ├── base.py
+│   │       ├── database.py
+│   │       └── in_memory.py
+│   ├── exceptions.py
+│   └── main.py
+├── .env.example
 ├── pyproject.toml
-└── uv.lock
+└── README.md
 ```
