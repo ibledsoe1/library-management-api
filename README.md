@@ -2,7 +2,7 @@
 
 This is a simple library management API, which lets users manage library related data such as Members and Books. Users can create, view, update, and delete Members or Books, and each Book belongs to a Member. 
 
-This is for SDEV 3310 Assignment 1.
+This is for SDEV 3310 Assignment 3.
 
 ## Requirements
 
