@@ -62,9 +62,9 @@ app = FastAPI(
     title="Library Management API",
     description=(
         "Manage the members of the library and books."
-        "This is for SDEV 3310 assignment 2"
+        "This is for SDEV 3310 assignment 3"
     ),
-    version="0.2.0",
+    version="0.3.0",
     openapi_tags=tags_metadata,
     lifespan=lifespan,
 )
