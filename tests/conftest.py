@@ -25,6 +25,10 @@ complete pytest command. The database reset, SQLAlchemy Session, and both
 TestClient fixtures use the default `scope="function"`, so each test function
 starts with isolated state. These pytest fixture scopes are separate from the
 SQLAlchemy `Session` object created for database work.
+
+Authentication is separate from backend selection. `member_headers` and
+`admin_headers` provide explicit Bearer headers that tests pass to requests;
+the `database_client` and `memory_client` fixtures remain unauthenticated.
 """
 
 import os
@@ -35,6 +39,9 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 from starlette.testclient import TestClient
 from testcontainers.community.postgres import PostgresContainer
+
+from app.auth.users import Role, get_demo_token_for_role
+from app.config import Settings, StorageBackend
 
 
 @pytest.fixture(scope="session")
@@ -76,7 +83,6 @@ def db_engine(postgres_container: PostgresContainer) -> Engine:
 
 
 @pytest.fixture
-# NOTE: ask what generator[none, none, none] is even for
 def reset_database(db_engine: Engine) -> Generator[None, None, None]:
     """Give each integration test empty Member and Book tables."""
     from app.models.base import Base
@@ -140,3 +146,45 @@ def memory_client(
         # FastAPI's lifespan creates a fresh InMemoryStore for this client,
         # so Members and Books can't leak between memory router tests
         yield test_client
+
+
+@pytest.fixture
+def demo_settings() -> Settings:
+    """Load token settings without requiring a DB URL."""
+    return Settings(storage_backend=StorageBackend.MEMORY)
+
+
+@pytest.fixture
+def member_headers(demo_settings: Settings) -> dict[str, str]:
+    """Provide the Authorization header for the library member role."""
+    return {
+        "Authorization": f"Bearer {get_demo_token_for_role(Role.MEMBER, demo_settings)}"
+    }
+
+
+@pytest.fixture
+def admin_headers(demo_settings: Settings) -> dict[str, str]:
+    """Provide the Authorization header for the library administrator role."""
+    return {
+        "Authorization": f"Bearer {get_demo_token_for_role(Role.ADMIN, demo_settings)}"
+    }
+
+
+# Each test will receive a fresh TestClient, so setting default headers doesn't
+# affect other tests
+@pytest.fixture
+def admin_client(
+    database_client: TestClient,
+    admin_headers: dict[str, str],
+) -> TestClient:
+    database_client.headers.update(admin_headers)
+    return database_client
+
+
+@pytest.fixture
+def member_client(
+    database_client: TestClient,
+    member_headers: dict[str, str],
+) -> TestClient:
+    database_client.headers.update(member_headers)
+    return database_client
