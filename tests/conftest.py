@@ -33,7 +33,7 @@ from collections.abc import Generator
 import pytest
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
-from starlette.textclient import TestClient
+from starlette.testclient import TestClient
 from testcontainers.community.postgres import PostgresContainer
 
 
@@ -140,11 +140,3 @@ def memory_client(
         # FastAPI's lifespan creates a fresh InMemoryStore for this client,
         # so Members and Books can't leak between memory router tests
         yield test_client
-    
-
-
-
-
-
-
-    
