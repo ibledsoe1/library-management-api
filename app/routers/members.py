@@ -2,6 +2,12 @@
 
 from fastapi import APIRouter, Response, status, Depends
 
+from app.auth.dependencies import (
+    ADMIN_RESPONSES, 
+    AUTHENTICATED_RESPONSES,
+    AdminUser,
+    CurrentUser,
+)
 from app.dependencies import get_member_service
 from app.exceptions import (
     MemberHasBooksError,
@@ -30,8 +36,10 @@ router = APIRouter(prefix="/members", tags=["Members"])
     response_model=list[MemberResponse],
     summary="List all members",
     description="Return every member currently stored by the application.",
+    responses=AUTHENTICATED_RESPONSES,
 )
 def list_members(
+    _current_user: CurrentUser,
     service: MemberService = Depends(get_member_service),
 ) -> list[Member]:
     """Delegate Member retrieval to the service layer."""
@@ -44,9 +52,13 @@ def list_members(
     response_model=MemberResponse,
     summary="Get one member",
     description="Return the member identified by the path parameter.",
-    responses={404: {"description": "Member not found"}},
+    responses={
+            **AUTHENTICATED_RESPONSES,
+            404: {"description": "Member not found"},
+        },
 )
 def get_member(
+    _current_user: CurrentUser,
     member_id: int,
     service: MemberService = Depends(get_member_service),
 ) -> Member:
@@ -66,11 +78,13 @@ def get_member(
     summary="Create a member",
     description="Create a member from a validated JSON request body.",
     responses={
+        **ADMIN_RESPONSES,
         409: {"description": "Email or membership ID already in use."},
     }
 )
 def create_member(
     data: MemberInput,
+    _admin_user: AdminUser,
     service: MemberService = Depends(get_member_service),
 ) -> Member:
     """Pass validated input to the business and persistence layers."""
@@ -89,6 +103,7 @@ def create_member(
     summary="Replace a member",
     description="Replace all editable fields of an existing member.",
     responses={
+        **ADMIN_RESPONSES,
         404: {"description": "Member not found"},
         409: {"description": "Email or membership ID already in use."},
     },
@@ -96,6 +111,7 @@ def create_member(
 def replace_member(
     member_id: int,
     data: MemberInput,
+    _admin_user: AdminUser,
     service: MemberService = Depends(get_member_service),
 ) -> Member:
     """Replace one Member through the service layer."""
@@ -116,12 +132,14 @@ def replace_member(
     summary="Delete a member",
     description="Delete a member only when it has no related books.",
     responses={
+        **ADMIN_RESPONSES,
         404: {"description": "Member not found"},
         409: {"description": "Member still has related books"},
     },
 )
 def delete_member(
     member_id: int,
+    _admin_user: AdminUser,
     service: MemberService = Depends(get_member_service),
 ) -> Response:
     """Translate Member deletion outcomes into HTTP responses."""
@@ -140,10 +158,14 @@ def delete_member(
     response_model=list[BookResponse],
     summary="List a member's books",
     description="Return every book that belongs to the requested member.",
-    responses={404: {"description": "Member not found"}},
+    responses={
+        **AUTHENTICATED_RESPONSES,
+        404: {"description": "Member not found"},
+    },
 )
 def list_member_books(
     member_id: int,
+    _current_user: CurrentUser,
     service: MemberService = Depends(get_member_service),
 ) -> list[Book]:
     """Return related Books after the service verifies the Member."""

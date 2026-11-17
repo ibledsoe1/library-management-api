@@ -2,6 +2,12 @@
 
 from fastapi import APIRouter, Response, status, Depends
 
+from app.auth.dependencies import (
+    ADMIN_RESPONSES,
+    AUTHENTICATED_RESPONSES,
+    AdminUser,
+    CurrentUser,
+)
 from app.dependencies import get_book_service
 from app.exceptions import MemberNotFoundError, BookNotFoundError, ISBNAlreadyExistsError
 from app.models.book import Book
@@ -17,8 +23,12 @@ router = APIRouter(prefix="/books", tags=["Books"])
     response_model=list[BookResponse],
     summary="List all books",
     description="Return every book currently stored by the application.",
+    responses=AUTHENTICATED_RESPONSES,
 )
-def list_books(service: BookService = Depends(get_book_service)) -> list[Book]:
+def list_books(
+    _current_user: CurrentUser,
+    service: BookService = Depends(get_book_service),
+) -> list[Book]:
     """Delegate Book retrieval to the service layer."""
     return service.list_books()
 
@@ -29,10 +39,14 @@ def list_books(service: BookService = Depends(get_book_service)) -> list[Book]:
     response_model=BookResponse,
     summary="Get one book",
     description="Return the book identified by the path parameter.",
-    responses={404: {"description": "Book not found"}},
+    responses={
+        **AUTHENTICATED_RESPONSES,
+        404: {"description": "Book not found"},
+    },
 )
 def get_book(
     book_id: int,
+    _current_user: CurrentUser,
     service: BookService = Depends(get_book_service),
 ) -> BookResponse:
     """Return one Book or translate the missing-resource error."""
@@ -52,12 +66,14 @@ def get_book(
     summary="Create a book",
     description="Create a book and associate it with an existing member.",
     responses={
+        **ADMIN_RESPONSES,
         404: {"description": "Related member not found"},
         409: {"description": "ISBN already in use"}
     },
 )
 def create_book(
     data: BookInput,
+    _admin_user: AdminUser,
     service: BookService = Depends(get_book_service),
 ) -> Book:
     """Create a Book after the service verifies its business rules."""
@@ -76,6 +92,7 @@ def create_book(
     summary="Replace a book",
     description="Replace all editable fields and verify the related member.",
     responses={
+        **ADMIN_RESPONSES,
         404: {"description": "Book or related member not found"},
         409: {"description": "ISBN already in use"}
     },
@@ -83,6 +100,7 @@ def create_book(
 def replace_book(
     book_id: int,
     data: BookInput,
+    _admin_user: AdminUser,
     service: BookService = Depends(get_book_service),
 ) -> Book:
     """Replace a Book after checking both related resources."""
@@ -102,10 +120,14 @@ def replace_book(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a book",
     description="Delete the book identified by the path parameter.",
-    responses={404: {"description": "Book not found"}},
+    responses={
+        **ADMIN_RESPONSES,
+        404: {"description": "Book not found"},
+    },
 )
 def delete_book(
     book_id: int,
+    _admin_user: AdminUser,
     service: BookService = Depends(get_book_service),
 ) -> Response:
     """Delete a Book and translate the service outcome into HTTP."""
