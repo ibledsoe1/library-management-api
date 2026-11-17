@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     database_url: str | None = None
     database_echo_sql: bool = False
     storage_backend: StorageBackend = StorageBackend.DATABASE
+    member_token: str = "member-token"
+    admin_token: str = "admin-token"
 
     model_config = SettingsConfigDict(
         env_file=".env",
