@@ -7,9 +7,9 @@ from app.models.member import Member
 from app.schemas.members import MemberInput, MemberResponse
 
 
-@pytest.mark.parametrize("missing_field", ["name", "description"])
+@pytest.mark.parametrize("missing_field", ["name", "email", "membership_id", "phone"])
 def test_member_create_requires_each_declared_field(missing_field: str) -> None:
-    """A create request must include both Member fields."""
+    """A create request must include every Member field."""
     data = valid_member_data()
     data.pop(missing_field)
 
@@ -21,16 +21,20 @@ def test_member_create_requires_each_declared_field(missing_field: str) -> None:
     ("field_name", "value"),
     [
         ("name", "   "),
-        ("description", "   "),
-        ("name", "n" * 101),
-        ("description", "d" * 501),
+        ("name", "n" * 121),
+        ("email", "not-an-email"),
+        ("email", "missing-domain@"),
+        ("phone", "123456789"),  # 9 digits
+        ("phone", "12345678901"),  # 11 digits
+        ("phone", "123-456-7890"),  # formatting characters are rejected
+        ("phone", "abcdefghij"),
     ],
 )
 def test_member_create_enforces_field_boundaries(
     field_name: str,
     value: str,
 ) -> None:
-    """Member names and descriptions must satisfy their declared constraints."""
+    """Member fields must satisfy their declared constraints."""
     data = valid_member_data()
     data[field_name] = value
 
@@ -38,53 +42,58 @@ def test_member_create_enforces_field_boundaries(
         MemberInput(**data)
 
 
-def test_member_create_accepts_declared_maximum_lengths() -> None:
-    """The inclusive maximum lengths remain valid request values."""
-    member = MemberInput(name="n" * 100, description="d" * 500)
+def test_member_create_accepts_declared_maximum_length() -> None:
+    """The inclusive maximum name length remains a valid request value."""
+    data = valid_member_data()
+    data["name"] = "n" * 120
 
-    assert len(member.name) == 100
-    assert len(member.description) == 500
+    member = MemberInput(**data)
+
+    assert len(member.name) == 120
 
 
 def test_member_create_strips_surrounding_whitespace() -> None:
     """Shared schema configuration normalizes string input."""
-    member = MemberInput(
-        name="  Testing Module  ",
-        description="  Add automated tests.  ",
-    )
+    data = valid_member_data()
+    data["name"] = "  Izzy Bledsoe  "
+    data["membership_id"] = "  101  "
+    data["phone"] = "  1234567890  "
 
-    assert member.name == "Testing Module"
-    assert member.description == "Add automated tests."
+    member = MemberInput(**data)
+
+    assert member.name == "Izzy Bledsoe"
+    assert member.membership_id == "101"
+    assert member.phone == "1234567890"
 
 
 def test_member_create_rejects_undocumented_field() -> None:
     """The request contract rejects input outside the documented schema."""
     with pytest.raises(ValidationError):
-        MemberInput(**valid_member_data(), owner="Instructor")
+        MemberInput(**valid_member_data(), address="123 Main St")
 
 
 def test_member_update_uses_the_same_request_contract() -> None:
     """A replacement request inherits Member field rules and configuration."""
-    member = MemberInput(
-        name="  Updated Module  ",
-        description="  Replace every editable field.  ",
-    )
+    data = valid_member_data()
+    data["name"] = "  Updated Member  "
 
-    assert member.name == "Updated Module"
-    assert member.description == "Replace every editable field."
+    member = MemberInput(**data)
+
+    assert member.name == "Updated Member"
+    with pytest.raises(ValidationError):
+        MemberInput(**{**data, "phone": "123"})
 
 
 def test_member_response_reads_an_orm_member() -> None:
     """The response schema serializes attributes from an ORM model instance."""
-    source = Member(id=1, name="Course API", description="Course demonstration")
+    source = Member(id=1, **valid_member_data())
 
-    response = MemberResponse.model_validate(source)
+    # from_attributes=True lets Pydantic read attributes from a non-dict object.
+    # FastAPI does this automatically for response_model, but a direct unit
+    # test of the schema must request it.
+    response = MemberResponse.model_validate(source, from_attributes=True)
 
-    assert response.model_dump() == {
-        "name": "Course API",
-        "description": "Course demonstration",
-        "id": 1,
-    }
+    assert response.model_dump() == {**valid_member_data(), "id": 1}
 
 
 def test_member_response_rejects_nonpositive_server_id() -> None:
@@ -98,4 +107,9 @@ def test_member_response_rejects_nonpositive_server_id() -> None:
 
 def valid_member_data() -> dict[str, str]:
     """Return a valid Member request body for focused validation scenarios."""
-    return {"name": "Testing Module", "description": "Add schema unit tests."}
+    return {
+        "name": "Izzy Bledsoe",
+        "email": "ibledsoe1@collin.edu",
+        "membership_id": "101",
+        "phone": "1234567890",
+    }
