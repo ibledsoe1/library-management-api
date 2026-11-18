@@ -1,0 +1,84 @@
+"""Unit tests for the Bearer-token authentication dependencies."""
+
+import pytest
+from fastapi import HTTPException
+from fastapi.security import HTTPAuthorizationCredentials
+
+from app.auth.dependencies import get_current_user, require_admin
+from app.auth.users import AuthenticatedUser, Role, get_token_for_role
+from app.config import Settings, StorageBackend
+
+# AUTHENTICATION
+# These tests call dependency functions directly, so they don't start
+# FastAPI, Docker, or PostgreSQL. Isolates token-to-user mapping
+# and HTTP errors returned for missing or invalid credential.
+
+@pytest.mark.parametrize(
+    ("role", "username"),
+    [(Role.MEMBER, "member"), (Role.ADMIN, "admin")],
+)
+def test_valid_token_authenticates_its_predefined_user(
+    role: Role,
+    username: str,
+) -> None:
+    """Each configured token resolves to its fixed user and role."""
+    settings = Settings(storage_backend=StorageBackend.MEMORY)
+    user = get_current_user(
+        bearer_credentials(get_token_for_role(role, settings)),
+        settings,
+    )
+
+    assert user == AuthenticatedUser(username=username, role=role)
+
+
+@pytest.mark.parametrize(
+    "credentials",
+    [
+        None,
+        HTTPAuthorizationCredentials(scheme="Bearer", credentials="not-a-valid-token"),
+        HTTPAuthorizationCredentials(scheme="Basic", credentials="token"),
+    ],
+    ids=["missing", "unknown-token", "wrong-scheme"],
+)
+def test_missing_or_invalid_credentials_return_bearer_401(
+    credentials: HTTPAuthorizationCredentials | None,
+) -> None:
+    """Unauthenticated requests return 401 and advertise the Bearer scheme."""
+    settings = Settings(storage_backend=StorageBackend.MEMORY)
+    with pytest.raises(HTTPException) as error:
+        get_current_user(credentials, settings)
+
+    assert error.value.status_code == 401
+    assert error.value.detail == "Missing or invalid Bearer token"
+    assert error.value.headers == {"WWW-Authenticate": "Bearer"}
+
+
+# AUTHORIZATION
+
+def test_member_cannot_pass_the_administrator_requirement() -> None:
+    """A valid member identity receives 403 when an admin role is required."""
+    member = AuthenticatedUser(username="member", role=Role.MEMBER)
+
+    with pytest.raises(HTTPException) as error:
+        require_admin(member)
+
+    assert error.value.status_code == 403
+    assert error.value.detail == "Administrator role required"
+
+
+def test_administrator_passes_the_administrator_requirement() -> None:
+    """The dependency returns the authenticated administrator to the route."""
+    admin = AuthenticatedUser(username="admin", role=Role.ADMIN)
+
+    assert require_admin(admin) is admin
+
+
+# HELPERS
+
+
+def bearer_credentials(
+    token: str,
+    scheme: str = "Bearer",
+) -> HTTPAuthorizationCredentials:
+    """Build the credentials object that FastAPI's HTTPBearer normally yields."""
+    return HTTPAuthorizationCredentials(scheme=scheme, credentials=token)

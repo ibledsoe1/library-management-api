@@ -40,7 +40,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from starlette.testclient import TestClient
 from testcontainers.community.postgres import PostgresContainer
 
-from app.auth.users import Role, get_demo_token_for_role
+from app.auth.users import Role, get_token_for_role
 from app.config import Settings, StorageBackend
 
 
@@ -158,7 +158,7 @@ def demo_settings() -> Settings:
 def member_headers(demo_settings: Settings) -> dict[str, str]:
     """Provide the Authorization header for the library member role."""
     return {
-        "Authorization": f"Bearer {get_demo_token_for_role(Role.MEMBER, demo_settings)}"
+        "Authorization": f"Bearer {get_token_for_role(Role.MEMBER, demo_settings)}"
     }
 
 
@@ -166,7 +166,7 @@ def member_headers(demo_settings: Settings) -> dict[str, str]:
 def admin_headers(demo_settings: Settings) -> dict[str, str]:
     """Provide the Authorization header for the library administrator role."""
     return {
-        "Authorization": f"Bearer {get_demo_token_for_role(Role.ADMIN, demo_settings)}"
+        "Authorization": f"Bearer {get_token_for_role(Role.ADMIN, demo_settings)}"
     }
 
 
