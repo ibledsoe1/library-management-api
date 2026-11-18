@@ -49,7 +49,7 @@ AppSettings = Annotated[Settings, Depends(get_settings)]
 
 def get_current_user(
     credentials: BearerCredentials,
-    settings = AppSettings,
+    settings: AppSettings,
 ) -> AuthenticatedUser:
     """Authenticate a recognized Bearer token and return its user."""
     if credentials is None or credentials.scheme.lower() != "bearer":
