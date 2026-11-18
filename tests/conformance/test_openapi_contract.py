@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 import schemathesis
 from openapi_spec_validator import validate
+from schemathesis.specs.openapi.checks import allow_header_conformance
 from starlette.testclient import TestClient
 
 
@@ -75,22 +76,38 @@ def test_openapi_document_describes_member_and_book_schemas(
     openapi_document = database_client.get("/openapi.json").json()
     schemas = openapi_document["components"]["schemas"]
 
-    assert_schema_fields(schemas["MemberInput"], {"name", "description"})
-    assert_schema_fields(schemas["MemberResponse"], {"id", "name", "description"})
+    member_fields = {"name", "email", "membership_id", "phone"}
+    book_fields = {"title", "author", "isbn", "published_year", "member_id"}
+    assert_schema_fields(schemas["MemberInput"], member_fields)
+    assert_schema_fields(schemas["MemberResponse"], member_fields | {"id"})
+    # published_year is the only optional Book field
     assert_schema_fields(
-        schemas["BookInput"],
-        {"title", "description", "completed", "member_id"},
+        schemas["BookInput"], book_fields, optional_fields={"published_year"}
     )
     assert_schema_fields(
         schemas["BookResponse"],
-        {"id", "title", "description", "completed", "member_id"},
+        book_fields | {"id"},
+        optional_fields={"published_year"},
     )
 
-    member_name = schemas["MemberInput"]["properties"]["name"]
-    assert member_name["type"] == "string"
-    assert member_name["minLength"] == 1
-    assert member_name["maxLength"] == 100
-    assert schemas["BookInput"]["properties"]["completed"]["default"] is False
+    member_properties = schemas["MemberInput"]["properties"]
+    assert member_properties["name"]["type"] == "string"
+    assert member_properties["name"]["minLength"] == 1
+    assert member_properties["name"]["maxLength"] == 120
+    assert member_properties["email"]["format"] == "email"
+    assert member_properties["phone"]["pattern"] == r"^\d{10}$"
+
+    book_properties = schemas["BookInput"]["properties"]
+    assert book_properties["title"]["maxLength"] == 200
+    assert book_properties["author"]["maxLength"] == 120
+    assert book_properties["isbn"]["minLength"] == 10
+    # published_year accepts an integer or null; it is optional (see above)
+    year_schema = next(
+        option
+        for option in book_properties["published_year"]["anyOf"]
+        if option.get("type") == "integer"
+    )
+    assert year_schema["minimum"] == 1450
 
     member_post_schema = paths_response_schema(
         openapi_document,
@@ -114,44 +131,70 @@ def test_openapi_document_describes_member_and_book_schemas(
 
 
 def test_create_member_matches_its_documented_public_response(
-    database_client: TestClient,
+    admin_client: TestClient,
 ) -> None:
     """A created Member has the documented status and response shape."""
-    response = database_client.post(
+    response = admin_client.post(
         "/members",
         json={
             "name": "Contract Test Member",
-            "description": "Verify the documented Member response.",
+            "email": "contract.member@collin.edu",
+            "membership_id": "CONTRACT-1",
+            "phone": "1234567890",
         },
     )
 
     assert response.status_code == 201
     member = response.json()
-    assert set(member) == {"id", "name", "description"}
+    assert set(member) == {"id", "name", "email", "membership_id", "phone"}
     assert isinstance(member["id"], int)
     assert member["id"] > 0
     assert member["name"] == "Contract Test Member"
-    assert member["description"] == "Verify the documented Member response."
+    assert member["email"] == "contract.member@collin.edu"
+
+
+def test_create_book_matches_its_documented_public_response(
+    admin_client: TestClient,
+) -> None:
+    """A created Book has the documented status and response shape."""
+    member = create_member(admin_client)
+
+    response = admin_client.post(
+        "/books",
+        json={
+            "title": "Contract Test Book",
+            "author": "Contract Author",
+            "isbn": "978-9999999999",
+            "published_year": 2000,
+            "member_id": member["id"],
+        },
+    )
+
+    assert response.status_code == 201
+    book = response.json()
+    assert set(book) == {"id", "title", "author", "isbn", "published_year", "member_id"}
+    assert isinstance(book["id"], int)
+    assert book["member_id"] == member["id"]
 
 
 def test_missing_member_matches_documented_not_found_response(
-    database_client: TestClient,
+    admin_client: TestClient,
 ) -> None:
     """A consumer receives the documented 404 outcome for a missing Member."""
-    response = database_client.get("/members/999999")
+    response = admin_client.get("/members/999999")
 
     assert response.status_code == 404
     assert response.json()["detail"]
 
 
 def test_member_with_books_matches_documented_conflict_response(
-    database_client: TestClient,
+    admin_client: TestClient,
 ) -> None:
     """Deleting a Member with Books returns the documented 409 outcome."""
-    member = create_member(database_client)
-    create_book(database_client, member["id"])
+    member = create_member(admin_client)
+    create_book(admin_client, member["id"])
 
-    response = database_client.delete(f"/members/{member['id']}")
+    response = admin_client.delete(f"/members/{member['id']}")
 
     assert response.status_code == 409
     assert response.json()["detail"]
@@ -193,23 +236,41 @@ schema = schemathesis.pytest.from_fixture("openapi_schema").include(
 def test_generated_read_only_responses_conform_to_openapi(
     case: Any,
     database_client: TestClient,
+    admin_headers: dict[str, str],
 ) -> None:
     """Generated safe requests receive responses valid for their OpenAPI schema."""
     # TestClient sends the generated request directly to the running ASGI app.
     # Schemathesis then checks the status code, headers, and response body
     # against the operation described in `/openapi.json`.
-    case.call_and_validate(session=database_client)
+    #
+    # `headers` replaces the random Authorization value that Schemathesis would
+    # otherwise generate from the Bearer security scheme. Without a real token
+    # every protected request would only exercise the 401 response.
+    #
+    # `allow_header_conformance` is excluded because FastAPI/Starlette reports
+    # only one route's methods in the `Allow` header of a 405 response (for
+    # example `GET` for /members, although POST also exists). That is a
+    # framework limitation, not an error in this API's documented contract.
+    case.call_and_validate(
+        session=database_client,
+        headers=admin_headers,
+        excluded_checks=[allow_header_conformance],
+    )
 
 
 # HELPERS
 
 
-def assert_schema_fields(schema: dict[str, Any], expected_fields: set[str]) -> None:
+def assert_schema_fields(
+    schema: dict[str, Any],
+    expected_fields: set[str],
+    optional_fields: set[str] | None = None,
+) -> None:
     """Confirm a component is an object with the expected documented fields."""
     assert schema["type"] == "object"
     assert schema["additionalProperties"] is False
     assert set(schema["properties"]) == expected_fields
-    assert set(schema["required"]) == expected_fields - {"completed"}
+    assert set(schema["required"]) == expected_fields - (optional_fields or set())
 
 
 def paths_response_schema(
@@ -224,24 +285,30 @@ def paths_response_schema(
     ]["application/json"]["schema"]
 
 
-def create_member(database_client: TestClient) -> dict[str, Any]:
-    """Create a parent Member required by the conflict scenario."""
-    response = database_client.post(
+def create_member(client: TestClient) -> dict[str, Any]:
+    """Create a parent Member required by the Book and conflict scenarios."""
+    response = client.post(
         "/members",
-        json={"name": "Conflict Member", "description": "Has a related Book."},
+        json={
+            "name": "Conflict Member",
+            "email": "conflict.member@collin.edu",
+            "membership_id": "CONFLICT-1",
+            "phone": "1234567890",
+        },
     )
     assert response.status_code == 201
     return response.json()
 
 
-def create_book(database_client: TestClient, member_id: int) -> dict[str, Any]:
+def create_book(client: TestClient, member_id: int) -> dict[str, Any]:
     """Create the Book that makes Member deletion a conflict."""
-    response = database_client.post(
+    response = client.post(
         "/books",
         json={
             "title": "Related Book",
-            "description": "Creates the delete conflict.",
-            "completed": False,
+            "author": "Related Author",
+            "isbn": "978-1010101010",
+            "published_year": 2000,
             "member_id": member_id,
         },
     )
