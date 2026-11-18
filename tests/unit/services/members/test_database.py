@@ -6,7 +6,7 @@ import pytest
 from mockito import args, mock, unstub, verify, when
 
 import app.services.members.database as database_module
-from app.exceptions import MemberNotFoundError
+from app.exceptions import MemberHasBooksError, MemberNotFoundError
 from app.models.member import Member
 from app.schemas.members import MemberInput
 from app.services.members import DatabaseMemberService
@@ -62,13 +62,11 @@ def test_create_member_uses_repository_and_transaction(
     session_factory: tuple[object, object, object],
 ) -> None:
     factory, session, repository = session_factory
-    member = Member(id=1, name="Course API", description="Demo")
+    member = make_member()
     when(repository).create(...).thenReturn(member)
 
     with when(database_module).MemberRepository(session).thenReturn(repository):
-        result = DatabaseMemberService(factory).create_member(
-            MemberInput(name="Member Fields", description="Demo")
-        )
+        result = DatabaseMemberService(factory).create_member(member_input())
 
     assert result is member
     verify(repository, times=1).create(...)
@@ -85,3 +83,64 @@ def test_get_member_translates_missing_repository_result(
     with when(database_module).MemberRepository(session).thenReturn(repository):
         with pytest.raises(MemberNotFoundError):
             DatabaseMemberService(factory).get_member(999)
+
+
+def test_delete_member_rejects_member_with_books_without_deleting(
+    session_factory: tuple[object, object, object],
+) -> None:
+    factory, session, repository = session_factory
+    book_repository = mock()
+    member = make_member()
+    when(repository).get_by_id(1).thenReturn(member)
+    when(book_repository).exists_for_member(1).thenReturn(True)
+
+    with (
+        when(database_module).MemberRepository(session).thenReturn(repository),
+        when(database_module).BookRepository(session).thenReturn(book_repository),
+    ):
+        with pytest.raises(MemberHasBooksError):
+            DatabaseMemberService(factory).delete_member(1)
+
+    verify(repository, times=0).delete(...)
+
+
+def test_delete_member_removes_member_without_books(
+    session_factory: tuple[object, object, object],
+) -> None:
+    factory, session, repository = session_factory
+    book_repository = mock()
+    member = make_member()
+    when(repository).get_by_id(1).thenReturn(member)
+    when(book_repository).exists_for_member(1).thenReturn(False)
+    when(repository).delete(member)
+
+    with (
+        when(database_module).MemberRepository(session).thenReturn(repository),
+        when(database_module).BookRepository(session).thenReturn(book_repository),
+    ):
+        DatabaseMemberService(factory).delete_member(1)
+
+    verify(repository, times=1).delete(member)
+    verify(factory, times=1).begin()
+
+
+# HELPERS
+
+
+def member_input() -> MemberInput:
+    return MemberInput(
+        name="Izzy Bledsoe",
+        email="ibledsoe1@collin.edu",
+        membership_id="101",
+        phone="1234567890",
+    )
+
+
+def make_member() -> Member:
+    return Member(
+        id=1,
+        name="Izzy Bledsoe",
+        email="ibledsoe1@collin.edu",
+        membership_id="101",
+        phone="1234567890",
+    )
