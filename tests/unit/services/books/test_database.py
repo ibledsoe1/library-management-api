@@ -56,7 +56,13 @@ def test_create_book_checks_parent_and_uses_book_repository(
         when(database_module).BookRepository(session).thenReturn(book_repository),
     ):
         result = DatabaseBookService(factory).create_book(
-            BookInput(title="Write tests", description="Test service", member_id=1)
+            BookInput(
+                title="The Hobbit",
+                author="J.R.R. Tolkien",
+                isbn="978-0547928225",
+                published_year=1937,
+                member_id=1,
+            )
         )
 
     assert result is book
@@ -80,7 +86,8 @@ def test_create_book_rejects_missing_parent_without_creating_book(
             DatabaseBookService(factory).create_book(
                 BookInput(
                     title="Orphan book",
-                    description="Invalid parent",
+                    author="Unknown Author",
+                    isbn="978-0000000000",
                     member_id=999,
                 )
             )
