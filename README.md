@@ -2,13 +2,17 @@
 
 This is a simple library management API, which lets users manage library related data such as Members and Books. Users can create, view, update, and delete Members or Books, and each Book belongs to a Member. 
 
+This API uses layered architecture, and the storage type can be switched between in-memory and database. The default storage type is PostgreSQL database. To switch storage type to memory, set STORAGE_BACKEND=memory in .env to run the application with process-local lists. Changing it to STORAGE_BACKEND=database switches it back to the PostgreSQL database.
+
+A Bearer token establishes identity, the identity role determines whether a request may read or changes resources. This API uses environment-configured tokens for the assignment. There is no user database, password login, OAuth provider,JWT issuance,refresh tokens, or token revocation.
+
 This is for SDEV 3310 Assignment 3.
 
 ## Requirements
 
 - [uv](https://docs.astral.sh/uv/)
 
-`uv` manages the Python version, virtual environment, and member dependencies.
+`uv` manages the Python version, virtual environment, and dependencies.
 
 ### Install uv
 
@@ -30,7 +34,16 @@ Restart your terminal, then verify the installation:
 uv --version
 ```
 
-### Set up the member
+### Set up PostgreSQL
+
+Download the PostgreSQL installer (https://www.postgresql.org/download/) for your system and follow the installation instructions.
+
+From the library-management-api folder, run the database setup script and enter the password.
+```bash
+psql -U postgres -d postgres -f scripts/setup_database.sql
+```
+
+### Install dependencies
 
 From the repository root, run:
 
@@ -40,7 +53,59 @@ uv sync
 
 If the required Python version is unavailable, `uv sync` downloads it. It also creates the virtual environment and installs the dependencies recorded in `uv.lock`.
 
+## Run automated tests
+
+If Docker Desktop is not installed and running, follow the Docker Desktop setup instructions for your operating system: [Windows](docs/windows-setup.md#6-install-docker-desktop-for-automated-testing) or [macOS](docs/macos-setup.md#6-install-docker-desktop-for-automated-testing).
+
+The test suite has three complementary levels:
+
+- **Unit tests** isolate business rules; some use mocked database collaborators, and others use the in-memory services. They do not use HTTP or PostgreSQL.
+- **Database integration tests** use `TestClient` to send requests through the API and use a temporary PostgreSQL database. Memory router integration tests use the same application boundary without PostgreSQL.
+- **Conformance tests** check the generated OpenAPI contract, representative client-visible responses, and invalid requests.
+
+Before running integration or conformance tests, start Docker Desktop. Testcontainers uses Docker Desktop to start a disposable PostgreSQL container automatically. The container is created for the pytest session and removed when the test run finishes. It is never the local development database.
+
+Run all tests from the repository root:
+
+```bash
+uv run pytest
+```
+
+The first run may take longer while Docker downloads the PostgreSQL image. Test data is reset before each integration test, so one test does not affect another.
+
+```text
+pytest
+  -> Testcontainers starts temporary PostgreSQL
+  -> TestClient sends API requests
+  -> pytest checks the responses
+  -> Testcontainers removes PostgreSQL
+```
+
+
 ## Run the API
+
+Before starting the API, copy the sample environment file:
+
+```bash
+cp .env.example .env
+```
+
+The local connection uses the database user account and password created by the database setup script:
+
+```text
+DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/library
+```
+
+The URL identifies the database dialect and driver, username, password, host, port, and database name. The `postgres:postgres` username and password are intentionally simple for the demo.
+
+
+There are also two environment configured example tokens for this assignment:
+```
+MEMBER_TOKEN=member-token
+ADMIN_TOKEN=admin-token
+```
+They are for demonstrating request flow only as an example of how tokens work. In reality they would be more complex than this and would be kept secret.
+
 
 ```bash
 uv run uvicorn app.main:app --reload
@@ -60,6 +125,13 @@ The application exposes three views of the same OpenAPI contract:
 - `http://localhost:8000/docs` — Swagger UI for exploring and calling endpoints
 - `http://localhost:8000/redoc` — ReDoc for reading reference documentation
 - `http://localhost:8000/openapi.json` — the machine-readable OpenAPI document
+
+In docs, select "Authorize", and enter a token. Swagger UI adds the Authorization: Bearer ... header to protected requests.
+
+- member-token can use the protected `GET` endpoints.
+- admin-token can use all protected `GET`, `POST`, `PUT`, and `DELETE` endpoints.
+
+Requests without a valid token receive `401 Unauthorized`. A valid member token on a write endpoint receives `403 Forbidden`.
 
 | Method | URL | CRUD operation | Successful status |
 |---|---|---|---|
@@ -84,8 +156,7 @@ Here's some example data you can use for Member `POST` and `PUT` requests:
     "name":"John Doe",
     "email":"jdoe1@gmail.com",
     "membership_id":"102",
-    "phone":"1231231234",
-    "id":2
+    "phone":"1231231234"
 }
 ```
 
@@ -124,20 +195,56 @@ Book validation rules include:
 ```text
 library-management-api/
 ├── app/
+│   ├── auth/
+│   │   ├── dependencies.py
+│   │   └── users.py
+│   ├── database/
+│   │   └── session.py
+│   ├── config.py
+│   ├── dependencies.py
+│   ├── models/
+│   │   ├── base.py
+│   │   ├── member.py
+│   │   └── book.py
+│   ├── repositories/
+│   │   ├── members.py
+│   │   └── books.py
 │   ├── routers/
-│   │   ├── __init__.py
-│   │   ├── books.py
-│   │   └── members.py
+│   │   ├── members.py
+│   │   └── books.py
 │   ├── schemas/
-│   │   ├── __init__.py
-│   │   ├── books.py
-│   │   └── members.py
-│   ├── __init__.py
-│   ├── main.py
-│   └── storage.py
-├── .gitignore
-├── .python-version
-├── README.md
+│   │   ├── members.py
+│   │   └── books.py
+│   ├── services/
+│   │   ├── in_memory_store.py
+│   │   ├── members/
+│   │   │   ├── __init__.py
+│   │   │   ├── base.py
+│   │   │   ├── database.py
+│   │   │   └── in_memory.py
+│   │   └── books/
+│   │       ├── __init__.py
+│   │       ├── base.py
+│   │       ├── database.py
+│   │       └── in_memory.py
+│   ├── exceptions.py
+│   └── main.py
+├── tests/
+│   ├── conftest.py
+│   ├── conformance/
+│   │   ├── test_authentication_authorization_contract.py
+│   │   ├── test_negative_requests.py
+│   │   └── test_openapi_contract.py
+│   ├── integration/
+│   │   ├── repositories/
+│   │   └── routers/
+│   │       ├── database/
+│   │       │   ├── test_projects.py
+│   │       │   └── test_tasks.py
+│   │       └── memory/
+│   │           ├── test_projects.py
+│   │           └── test_tasks.py
+├── .env.example
 ├── pyproject.toml
-└── uv.lock
+└── README.md
 ```
